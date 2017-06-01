@@ -1,0 +1,199 @@
+hadoop2.7.3集群搭建
+集群规划：
+  主机名		IP		   安装的软件		                    运行的进程
+ sluff01   192.168.1.201  jdk、hadoop		           NameNode、DFSZKFailoverController
+ sluff02   192.168.1.202  jdk、hadoop		           NameNode、DFSZKFailoverController
+ sluff03   192.168.1.203  jdk、hadoop		           ResourceManager
+ sluff04   192.168.1.204  jdk、hadoop、zookeeper	   DataNode、NodeManager、JournalNode、QuorumPeerMain
+ sluff05   192.168.1.205  jdk、hadoop、zookeeper	   DataNode、NodeManager、JournalNode、QuorumPeerMain
+ sluff06   192.168.1.206  jdk、hadoop、zookeeper	   DataNode、NodeManager、JournalNode、QuorumPeerMain
+
+安装步骤：
+1.安装配置zooekeeper集群
+1.1解压
+	tar -zxvf zookeeper-3.4.9.tar.gz -C /sluff/
+1.2修改配置
+	cd /sluff/zookeeper-3.4.9/conf/
+	cp zoo_sample.cfg zoo.cfg
+	vim zoo.cfg
+	修改：dataDir=/sluff/zookeeper-3.4.9/data
+	在最后添加：
+	server.1=sluff04:2888:3888
+	server.2=sluff05:2888:3888
+	server.3=sluff06:2888:3888
+	保存退出
+	然后创建一个data文件夹
+	mkdir /sluff/zookeeper-3.4.9/data
+	再创建一个空文件
+	touch /sluff/zookeeper-3.4.9/data/myid
+	最后向该文件写入ID
+	echo 1 > /sluff/zookeeper-3.4.9/tmp/myid
+1.3将配置好的zookeeper拷贝到其他节点(首先分别在sluff05、sluff06根目录下创建一个sluff目录：mkdir /sluff)
+	scp -r /sluff/zookeeper-3.4.9/ sluff05:/sluff/
+	scp -r /sluff/zookeeper-3.4.9/ sluff06:/sluff/
+	
+	注意：修改sluff05、sluff06对应/sluff/zookeeper-3.4.9/tmp/myid内容
+	sluff05：
+		echo 2 > /sluff/zookeeper-3.4.9/tmp/myid
+	sluff06：
+		echo 3 > /sluff/zookeeper-3.4.9/tmp/myid
+	
+2.安装配置hadoop集群
+2.1解压
+tar -zxvf hadoop-2.7.3.tar.gz -C /sluff/
+2.2配置HDFS（hadoop2.0所有的配置文件都在$HADOOP_HOME/etc/hadoop目录下）
+#将hadoop添加到环境变量中
+vim /etc/profile
+export JAVA_HOME=/usr/java/jdk1.7.0_55
+export HADOOP_HOME=/sluff/hadoop-2.7.3
+export PATH=$PATH:$JAVA_HOME/bin:$HADOOP_HOME/bin
+
+#hadoop2.0的配置文件全部在$HADOOP_HOME/etc/hadoop下
+cd /sluff/hadoop-2.7.3/etc/hadoop
+
+2.2.1修改hadoo-env.sh
+	export JAVA_HOME=/usr/local/src/jdk1.8
+	
+2.2.2修改core-site.xml
+<configuration>
+	<property>
+		<name>fs.defaultFS</name>
+		<value>hdfs://ns1</value>
+	</property>
+	<property>
+		<name>hadoop.tmp.dir</name>
+		<value>/sluff/hadoop-2.7.3/tmp</value>
+	</property>
+	<property>
+		<name>ha.zookeeper.quorum</name>
+		<value>sluff04:2181,sluff05:2181,sluff06:2181</value>
+	</property>
+</configuration>
+	
+2.2.3修改hdfs-site.xml
+<configuration>
+	<property>
+		<name>dfs.nameservices</name>
+		<value>ns1</value>
+	</property>
+	<property>
+		<name>dfs.ha.namenodes.ns1</name>
+		<value>nn1,nn2</value>
+	</property>
+	<property>
+		<name>dfs.namenode.rpc-address.ns1.nn1</name>
+		<value>sluff01:9000</value>
+	</property>
+	<property>
+		<name>dfs.namenode.http-address.ns1.nn1</name>
+		<value>sluff01:50070</value>
+	</property>
+	<property>
+		<name>dfs.namenode.rpc-address.ns1.nn2</name>
+		<value>sluff02:9000</value>
+	</property>
+	<property>
+		<name>dfs.namenode.http-address.ns1.nn2</name>
+		<value>sluff02:50070</value>
+	</property>
+	<property>
+		<name>dfs.namenode.shared.edits.dir</name>
+		<value>qjournal://sluff04:8485;sluff05:8485;sluff06:8485/ns1</value>
+	</property>
+	<property>
+		<name>dfs.journalnode.edits.dir</name>
+		<value>/sluff/hadoop-2.7.3/journal</value>
+	</property>
+	<property>
+		<name>dfs.ha.automatic-failover.enabled</name>
+		<value>true</value>
+	</property>
+	<property>
+		<name>dfs.client.failover.proxy.provider.ns1</name>
+		<value>org.apache.hadoop.hdfs.server.namenode.ha.ConfiguredFailoverProxyProvider</value>
+	</property>
+	<property>
+		<name>dfs.ha.fencing.methods</name>
+		<value>
+			sshfence
+			shell(/bin/true)
+		</value>
+	</property>
+	<property>
+		<name>dfs.ha.fencing.ssh.private-key-files</name>
+		<value>/root/.ssh/id_rsa</value>
+	</property>
+	<property>
+		<name>dfs.ha.fencing.ssh.connect-timeout</name>
+		<value>30000</value>
+	</property>
+</configuration>
+
+2.2.4修改mapred-site.xml
+<configuration>
+	<property>
+		<name>mapreduce.framework.name</name>
+		<value>yarn</value>
+	</property>
+</configuration>	
+
+2.2.5修改yarn-site.xml
+<configuration>
+	<property>
+		<name>yarn.resourcemanager.hostname</name>
+		<value>sluff03</value>
+	</property>
+	<property>
+		<name>yarn.nodemanager.aux-services</name>
+		<value>mapreduce_shuffle</value>
+	</property>
+</configuration>
+
+	
+2.2.6修改slaves(slaves是指定子节点的位置，因为要在sluff01上启动HDFS、在sluff03启动yarn，所以sluff01上的slaves文件指定的是datanode的位置，sluff03上的slaves文件指定的是nodemanager的位置)
+	sluff04
+	sluff05
+	sluff06
+3. 拷贝hadoop到其他电脑上
+	scp -r /sluff/hadoop-2.7.3/ root@sluff02:/sluff
+	配置环境变量/etc/profile
+		export JAVA_HOME=/usr/local/src/jdk1.8
+		export HADOOP_HOME=/sluff/hadoop-2.7.3
+		export PATH=$PATH:$JAVA_HOME/bin:$HADOOP_HOME/bin
+	scp -r /etc/profile root@sluff02:/etc
+4.启动顺序
+	4.1启动zookeeper集群（分别在sluff04、sluff05、sluff06上启动zk）
+			cd /sluff/zookeeper-3.4.9/bin/
+			./zkServer.sh start
+			#查看状态：一个leader，两个follower
+			./zkServer.sh status
+			
+	4.2启动journalnode（在sluff01上启动所有journalnode，注意：是调用的hadoop-daemons.sh这个脚本，注意是复数s的那个脚本）
+			cd /sluff/hadoop-2.7.3
+			sbin/hadoop-daemons.sh start journalnode
+			#运行jps命令检验，sluff04、sluff05、sluff06上多了JournalNode进程
+		建议分别在sluff04、sluff05、sluff06上启动journalnode
+			sbin/hadoop-daemon.sh start journalnode 	
+	4.3格式化HDFS
+			#在sluff01上执行命令:
+			hdfs namenode -format
+			#格式化后会在根据core-site.xml中的hadoop.tmp.dir配置生成个文件，这里我配置的是/sluff/hadoop-2.7.3/tmp，然后将/sluff/hadoop-2.7.3/tmp拷贝到sluff02的/sluff/hadoop-2.7.3/下。
+			scp -r tmp/ sluff02:/sluff/hadoop-2.7.3/
+		
+	4.4格式化ZK(在sluff01上执行即可)
+			hdfs zkfc -formatZK
+		
+	4.5启动HDFS(在sluff01上执行)
+			sbin/start-dfs.sh
+
+	4.6启动YARN(#####注意#####：是在sluff03上执行start-yarn.sh，
+			把namenode和resourcemanager分开是因为性能问题，
+			因为他们都要占用大量资源，所以把他们分开了，他们分开了就要分别在不同的机器上启动)
+			sbin/start-yarn.sh
+
+	到此，hadoop2.7.3配置完毕，可以统计浏览器访问:
+		http://192.168.1.201:50070
+		NameNode 'sluff01:9000' (active)
+		http://192.168.1.202:50070
+		NameNode 'sluff02:9000' (standby)
+		
