@@ -1,0 +1,12 @@
+HDFS 读写功能
+１.　启动Hadoop集群
+	分别启动 zookeeper 、hdfs 、yarn 
+　　　	开启成功之后，在浏览器中可以看到相关信息
+	点击Utilities ，可以浏览 HDFS 上的文件
+２.　使用命令行的方式
+	上传文件：hadoop fs -put ./game.mp3 hdfs://sluff01:9000/game.mp3
+	下载文件：hadoop fs -get hdfs://sluff01:9000/game.mp3 /home/gamemp3
+3．　使用 java 接口完成上传与下载
+	在 eclipse 中新建工程，导入 /hadoop-2.7.3/share/hadoop/common 和 share/hadoop/common/lib 下的 jar 包，以及 /share/hadoop/hdfs 和 share/hadoop/hdfs/lib 下的 所有 jar 包。
+	然后就可以进行敲代码了。
+	
