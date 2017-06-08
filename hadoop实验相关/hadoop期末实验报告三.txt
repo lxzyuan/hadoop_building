@@ -1,0 +1,24 @@
+Hadoop实验报告之三：分析日志数据
+1.
+MapReduce执行流程
+	(1).客户端提交一个mr的jar包给JobClient(提交方式：hadoop jar ...)
+	(2).JobClient通过RPC和JobTracker进行通信，返回一个存放jar包的地址（HDFS）和jobId
+	(3).client将jar包写入到HDFS当中(path = hdfs上的地址 + jobId)
+	(4).开始提交任务(任务的描述信息，不是jar, 包括jobid，jar存放的位置，配置信息等等)
+	(5).JobTracker进行初始化任务
+	(6).读取HDFS上的要处理的文件，开始计算输入分片，每一个分片对应一个MapperTask
+	(7).TaskTracker通过心跳机制领取任务（任务的描述信息）
+	(8).下载所需的jar，配置文件等
+	(9).TaskTracker启动一个java child子进程，用来执行具体的任务（MapperTask或ReducerTask）
+	(10).将结果写入到HDFS当中
+2.实验目的：分析日志文件，统计在一段时间当中，手机的总流量。
+首先要明白，日志文件是有很多字段组成的，在进行实验之前，首先要知道每一个字段代表的具体含义是什么。在该日志中，第一个字段代表时间戳，第二个是手机号，第三个是APmac地址，第四个是AC的mac地址，第五个是访问的网站，第六个是网站的类型，第七个是上行数据包总数，第八个是下行数据包数，第九个是上行总流量，第十个是下行总流量，最后一个是服务器响应的状态。在本实验中，只有手机号和上下行流量是我们关心的数据，所以取数据的时候就只取这三个就行。
+分析：我们知道不管map，还是reduce函数的输入输出都是key-value。如果把手机号作为key的话，那上行流量和下行流量就要作为value，但是两个字段不能一起作为value，所以我们构造一个对象，叫做DataBean，把它当做value即可。
+所以我们第一步就是构造DataBean文件，定义upPayLoad、downPayLoad，当然还要定义一个totalPayLoad，用于保存总流量。
+map函数
+DataBean bean = new DataBean(tel, up, down);
+	
+context.write(new Text(tel), bean);
+reduce函数
+DataBean bean = new DataBean("", up_sum, down_sum);
+			context.write(key, bean);
