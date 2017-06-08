@@ -1,4 +1,4 @@
-Hadoop实验报告之三：分析日志数据
+Hadoop实验报告之三：统计手机流量
 1.
 MapReduce执行流程
 	(1).客户端提交一个mr的jar包给JobClient(提交方式：hadoop jar ...)
