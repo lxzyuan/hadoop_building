@@ -1,2 +1,2 @@
 # hadoop_building
-这是与hadoop平台相关软件的环境搭建。
+这是与hadoop有关的平台搭建和实验报告。
