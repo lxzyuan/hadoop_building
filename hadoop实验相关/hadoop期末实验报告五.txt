@@ -1,0 +1,67 @@
+Hadoop实验报告之五：清洗数据
+日志的格式：ip、时间、url、状态、流量
+现在我们要统计哪个ip点击网站的次数最多，就要过滤掉静态数据和和一些图片信息
+
+解析日志的行记录：
+	public String[] parse(String line){
+		String ip = parseIP(line);
+		String time;
+		try {
+			time = parseTime(line);
+		} catch (Exception e1) {
+			time = "null";
+		}
+		String url;
+		try {
+			url = parseURL(line);
+		} catch (Exception e) {
+			url = "null";
+		}
+		String status = parseStatus(line);
+		String traffic = parseTraffic(line);
+		
+		return new String[]{ip, time ,url, status, traffic};
+	}
+
+在Mapper函数中过滤所有静态的资源请求：
+	if(url.startsWith("GET /static")||url.startsWith("GET /uc_server")){
+		return;
+	}
+
+Reduce函数：
+	static class MyReducer extends Reducer<LongWritable, Text, Text, NullWritable>{
+		protected void reduce(LongWritable k2, java.lang.Iterable<Text> v2s, org.apache.hadoop.mapreduce.Reducer<LongWritable,Text,Text,NullWritable>.Context context) throws java.io.IOException ,InterruptedException {
+			for (Text v2 : v2s) {
+				context.write(v2, NullWritable.get());
+			}
+		};
+	}
+
+组合MapReduce，提交任务:
+	public int run(String[] args) throws Exception {
+		final String inputPath = args[0];
+		final String outPath = args[1];
+		
+		final Configuration conf = new Configuration();
+		final Job job = new Job(conf, Cleaner.class.getSimpleName());
+		job.setJarByClass(Cleaner.class);
+		
+		FileInputFormat.setInputPaths(job, inputPath);
+		
+		job.setMapperClass(MyMapper.class);
+		job.setMapOutputKeyClass(LongWritable.class);
+		job.setMapOutputValueClass(Text.class);
+		
+		job.setReducerClass(MyReducer.class);
+		job.setOutputKeyClass(Text.class);
+		job.setOutputValueClass(NullWritable.class);
+		FileOutputFormat.setOutputPath(job, new Path(outPath));
+		
+		job.waitForCompletion(true);
+		return 0;
+	}
+
+
+获取完整代码请点击「阅读原文」
+
+
