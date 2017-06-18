@@ -1,0 +1,23 @@
+Hadoop实验报告之四：利用flume收集日志
+flume是什么？
+官网解释是：Flume是一种分布式，可靠和可用的服务，用于高效收集，聚合和移动大量日志数据。它具有基于流数据流的简单灵活的架构。它具有可靠的可靠性机制和许多故障转移和恢复机制的强大和容错能力。它使用一个简单的可扩展数据模型，允许在线分析应用程序。
+
+event
+Flume事件被定义为具有字节有效载荷和可选的一组字符串属性的数据流的单元。Flume代理是一个（JVM）进程，它承载事件从外部源传递到下一个目标（跳）的组件。
+
+演示：
+我们编写一个flume的配置文件，至少要包含以下这几项
+	定义agent名， source、channel、sink的名称
+	具体定义source
+	具体定义channel
+	定义拦截器，为消息添加时间戳
+	具体定义sink
+	组装source、channel、sink
+（详细的配置文件请点击「阅读原文」获取）
+
+实现的功能是：
+在/root目录下新建一个文件夹logs,然后运行flume，进入flume的根目录，执行「bin/flume-ng agent -n a4 -c conf -f conf/a4.conf -Dflume.root.logger=INFO,console」
+当它运行起来之后，在终端上看到「started」，并且处于等待状态的时候，把日志文件复制到/root/logs目录，然后他将会继续执行，直到看到「COMPLETED」，表示收集完数据，在网页端可以看到详细的信息。
+
+
+
